@@ -1,36 +1,59 @@
-import ast
-import operator
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters
+import re
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
-OPS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-}
+TOKEN = "8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA"
 
-def eval_expr(expr):
-    def _eval(node):
-        if isinstance(node, ast.Constant):
-            return node.value
-        if isinstance(node, ast.BinOp):
-            return OPS[type(node.op)](_eval(node.left), _eval(node.right))
-        raise ValueError
-    return _eval(ast.parse(expr, mode="eval").body)
 
-async def on_message(update: Update, context):
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                text="➕ Добавить в группу",
+                url=f"https://t.me/{context.bot.username}?startgroup=true"
+            )
+        ]
+    ])
+
+    await update.message.reply_text(
+        "Я — калькулятор бот 🤖\n"
+        "Напиши пример снизу, и я решу его.\n\n"
+        "Пример: 2+2*5",
+        reply_markup=keyboard
+    )
+
+
+# обработка примеров
+async def calc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.replace(" ", "")
+
+    # разрешаем только цифры и операторы
+    if not re.fullmatch(r"[0-9+\-*/().]+", text):
+        return
+
     try:
-        text = update.message.text.replace(" ", "")
-        result = eval_expr(text)
-        await update.message.reply_text(str(result))
-    except:
-        pass
+        result = eval(text)
+        await update.message.reply_text(f"Ответ: {result}")
+    except Exception:
+        await update.message.reply_text("Ошибка в примере ❌")
+
 
 def main():
-    app = Application.builder().token("8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA").build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, calc))
+
+    print("Бот запущен")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
