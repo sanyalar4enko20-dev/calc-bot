@@ -1,53 +1,44 @@
-import asyncio
-import re
-from aiogram import Bot, Dispatcher, types
+import ast
+import operator
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-TOKEN = "8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA"
+# безопасные операции
+OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+}
 
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+def safe_eval(expr: str):
+    def _eval(node):
+        if isinstance(node, ast.Num):
+            return node.n
+        if isinstance(node, ast.BinOp):
+            return OPERATORS[type(node.op)](_eval(node.left), _eval(node.right))
+        if isinstance(node, ast.UnaryOp):
+            return OPERATORS[type(node.op)](_eval(node.operand))
+        raise ValueError("Недопустимое выражение")
 
-# Регулярка: 2+2, 10*5, -3-7, 8/2
-EXPR_RE = re.compile(r"^\s*(-?\d+)\s*([+\-*/])\s*(-?\d+)\s*$")
+    tree = ast.parse(expr, mode="eval")
+    return _eval(tree.body)
 
-
-@dp.message()
-async def calculator(message: types.Message):
-    if not message.text:
-        return
-
-    text = message.text.strip()
-    match = EXPR_RE.match(text)
-
-    if not match:
-        return  # не пример — молчим
-
-    a, op, b = match.groups()
-    a = int(a)
-    b = int(b)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.replace(" ", "")
 
     try:
-        if op == "+":
-            result = a + b
-        elif op == "-":
-            result = a - b
-        elif op == "*":
-            result = a * b
-        elif op == "/":
-            if b == 0:
-                await message.reply("❌ Делить на ноль нельзя")
-                return
-            result = a / b
+        result = safe_eval(text)
+        await update.message.reply_text(f"= {result}")
     except Exception:
-        return
+        pass  # если не пример — просто молчим
 
-    await message.reply(f"🧮 <b>{a} {op} {b} = {result}</b>", parse_mode="HTML")
-
-
-async def main():
-    print("Калькулятор-бот запущен")
-    await dp.start_polling(bot)
-
+def main():
+    app = ApplicationBuilder().token("8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA").build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
