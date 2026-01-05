@@ -1,4 +1,3 @@
-import asyncio
 import ast
 import operator
 from telegram import Update
@@ -28,10 +27,10 @@ async def on_message(update: Update, context):
     except:
         pass
 
-async def main():
+def main():
     app = Application.builder().token("8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA").build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
