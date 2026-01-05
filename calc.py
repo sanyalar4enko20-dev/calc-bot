@@ -20,20 +20,18 @@ def eval_expr(expr):
         raise ValueError
     return _eval(ast.parse(expr, mode="eval").body)
 
-async def handler(update: Update, context):
+async def on_message(update: Update, context):
     try:
-        res = eval_expr(update.message.text.replace(" ", ""))
-        await update.message.reply_text(str(res))
+        text = update.message.text.replace(" ", "")
+        result = eval_expr(text)
+        await update.message.reply_text(str(result))
     except:
         pass
 
 async def main():
     app = Application.builder().token("8586464933:AAEdcsFFRwu01nRLACfvA4cW3V6cYiFbAVA").build()
-    app.add_handler(MessageHandler(filters.TEXT, handler))
-
-    await app.initialize()
-    await app.start()
-    await asyncio.Event().wait()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
+    await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main())
